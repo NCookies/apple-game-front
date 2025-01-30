@@ -2,9 +2,14 @@ import { useEffect, useRef, useState } from "react";
 
 const GRID_WIDTH = 20;
 const GRID_HEIGHT = 15;
-const CELL_SIZE = 50;
+const CELL_SIZE = 50; // 사과 크기 및 간격 유지
 const PADDING = 5;
 const APPLE_RADIUS = (CELL_SIZE - PADDING * 2) / 2;
+
+// 캔버스 크기 확장 (양쪽 100px씩 여백 추가)
+const EXTRA_PADDING = 100;
+const CANVAS_WIDTH = GRID_WIDTH * CELL_SIZE + EXTRA_PADDING * 2;
+const CANVAS_HEIGHT = GRID_HEIGHT * CELL_SIZE + EXTRA_PADDING * 2;
 
 const generateApples = () => {
   let apples = [];
@@ -34,14 +39,15 @@ const AppleGame = () => {
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // 전체 영역을 연초록색으로 표시
-      ctx.fillStyle = "rgba(144, 238, 144, 0.3)";
+      // 전체 배경색
+      ctx.fillStyle = "#f4f1de";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+      // 사과 그리기 (위치는 그대로 유지)
       apples.forEach((value, index) => {
         if (value !== 0) {
-          const x = (index % GRID_WIDTH) * CELL_SIZE + CELL_SIZE / 2;
-          const y = Math.floor(index / GRID_WIDTH) * CELL_SIZE + CELL_SIZE / 2;
+          const x = (index % GRID_WIDTH) * CELL_SIZE + CELL_SIZE / 2 + EXTRA_PADDING;
+          const y = Math.floor(index / GRID_WIDTH) * CELL_SIZE + CELL_SIZE / 2 + EXTRA_PADDING;
           const scale = animations[index] !== undefined ? animations[index] : 1;
 
           ctx.beginPath();
@@ -52,7 +58,7 @@ const AppleGame = () => {
           ctx.stroke();
 
           ctx.fillStyle = "white";
-          ctx.font = "20px Arial";
+          ctx.font = "24px Arial"; // 숫자 크기
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.fillText(value, x, y);
@@ -68,7 +74,7 @@ const AppleGame = () => {
   }, [apples, selected, dragArea, animations]);
 
   const playSound = () => {
-    const audio = new Audio(process.env.PUBLIC_URL + "/sounds/pop.mp3");
+    const audio = new Audio("/sounds/pop.mp3");
     audio.play();
   };
 
@@ -120,13 +126,13 @@ const AppleGame = () => {
 
       const newSelected = apples
         .map((_, index) => {
-          const appleX = (index % GRID_WIDTH) * CELL_SIZE + CELL_SIZE / 2;
-          const appleY = Math.floor(index / GRID_WIDTH) * CELL_SIZE + CELL_SIZE / 2;
+          const appleX = (index % GRID_WIDTH) * CELL_SIZE + CELL_SIZE / 2 + EXTRA_PADDING;
+          const appleY = Math.floor(index / GRID_WIDTH) * CELL_SIZE + CELL_SIZE / 2 + EXTRA_PADDING;
           if (
-            appleX >= newArea.x &&
-            appleX <= newArea.x + newArea.width &&
-            appleY >= newArea.y &&
-            appleY <= newArea.y + newArea.height
+            appleX + APPLE_RADIUS >= newArea.x &&
+            appleX - APPLE_RADIUS <= newArea.x + newArea.width &&
+            appleY + APPLE_RADIUS >= newArea.y &&
+            appleY - APPLE_RADIUS <= newArea.y + newArea.height
           ) {
             return index;
           }
@@ -154,8 +160,8 @@ const AppleGame = () => {
       <p>Score: {score}</p>
       <canvas
         ref={canvasRef}
-        width={GRID_WIDTH * CELL_SIZE}
-        height={GRID_HEIGHT * CELL_SIZE}
+        width={CANVAS_WIDTH} // 캔버스 크기 증가
+        height={CANVAS_HEIGHT}
         className="border"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
