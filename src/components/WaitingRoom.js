@@ -42,7 +42,7 @@ const WaitingRoom = ({ guestName, roomInfo, onLeaveRoom }) => {
 
     const startGame = () => {
         if (stompClient) {
-            console.log("🚀 Sending game start request...");
+            console.log("Sending game start request...");
             stompClient.publish({ destination: "/app/game/start" });
         }
     };
