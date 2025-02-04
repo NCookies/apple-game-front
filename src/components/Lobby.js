@@ -13,7 +13,7 @@ const Lobby = ({ guestName, onJoinRoom }) => {
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
       onConnect: () => {
-        console.log("LOBBY 웹소켓 연결 성공");
+        console.log("[LOBBY] 웹소켓 연결 성공");
 
         // 방 리스트 갱신
         client.subscribe("/topic/rooms/update", (message) => {
@@ -35,7 +35,7 @@ const Lobby = ({ guestName, onJoinRoom }) => {
         });
       },
       onDisconnect: () => {
-        console.log("LOBBY 웹소켓 연결 끊김");
+        console.log("[LOBBY] 웹소켓 연결 끊김");
       },
     });
 
@@ -49,7 +49,7 @@ const Lobby = ({ guestName, onJoinRoom }) => {
     return () => {
       if (client) {
         client.deactivate(() => {
-          console.log("LOBBY 웹소켓 연결 해제");
+          console.log("[LOBBY] 웹소켓 연결 해제");
         });
       }
     };
@@ -107,7 +107,9 @@ const Lobby = ({ guestName, onJoinRoom }) => {
       if (!response.ok) {
         alert("방 입장 실패! 방이 가득 찼거나 존재하지 않습니다.");
       } else {
-        onJoinRoom(roomId); // 방 입장 성공 시 게임 화면으로 이동
+        const data = await response.json();
+        console.log(`방 입장 성공: ${data.roomId}`);
+        onJoinRoom(data); // 방 입장 성공 시 게임 화면으로 이동
       }
     } catch (error) {
       console.error("방 입장 오류:", error);

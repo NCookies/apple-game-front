@@ -1,7 +1,8 @@
 import './App.css';
 import React, { useEffect, useState } from "react";
-import { v4 as uuidv4 } from "uuid";
+
 import Lobby from "./components/Lobby";
+import WaitingRoom from "./components/WaitingRoom";
 import AppleGame from "./components/AppleGame";
 
 const generateGuestName = () => {
@@ -26,8 +27,8 @@ const App = () => {
   }, []);
 
   // 방 입장
-  const joinRoom = (roomId) => {
-    setCurrentRoom(roomId);
+  const joinRoom = (room) => {
+    setCurrentRoom(room);
   };
 
   // 방 나가기
@@ -39,7 +40,7 @@ const App = () => {
     <div>
       {guestName ? (
         currentRoom ? (
-          <AppleGame guestName={guestName} roomId={currentRoom} onLeaveRoom={leaveRoom} />
+          <WaitingRoom guestName={guestName} roomInfo={currentRoom} onLeaveRoom={leaveRoom} />
         ) : (
           <Lobby guestName={guestName} onJoinRoom={joinRoom} />
         )
