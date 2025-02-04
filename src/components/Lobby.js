@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 
-const Lobby = ({ guestName }) => {
+const Lobby = ({ guestName, onJoinRoom }) => {
   const [rooms, setRooms] = useState([]);
   const [roomName, setRoomName] = useState("");
   const [stompClient, setStompClient] = useState(null);
@@ -15,9 +15,9 @@ const Lobby = ({ guestName }) => {
       onConnect: () => {
         console.log("LOBBY 웹소켓 연결 성공!");
 
+        // 방 리스트 갱신
         client.subscribe("/topic/rooms", (message) => {
           const updatedRoom = JSON.parse(message.body);
-          console.log("방 정보 갱신", updatedRoom);
           setRooms((prevRooms) => {
             const roomExists = prevRooms.some((room) => room.roomId === updatedRoom.roomId);
             
@@ -40,6 +40,7 @@ const Lobby = ({ guestName }) => {
     // 초기 접속 시 방 목록을 가져옴
     fetchRooms();
 
+    // 로비 화면에서 다른 화면으로 이동 시 웹소켓 연결 해제
     return () => {
       if (client) {
         client.deactivate(() => {
@@ -53,37 +54,57 @@ const Lobby = ({ guestName }) => {
     try {
       const response = await fetch("http://localhost:8080/api/rooms");
       const data = await response.json();
-      setRooms(data);
+      if (data) {
+        setRooms(data);
+      }
     } catch (error) {
       console.error("Failed to fetch rooms:", error);
     }
   };
 
+  // 방 생성 요청
   const createRoom = async () => {
-    if (stompClient) {
-      console.log("방 생성 요청");
-      stompClient.publish({
-        destination: "/app/rooms/create",
+    try {
+      const response = await fetch("http://localhost:8080/api/rooms/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           roomName: roomName,
           userId: guestName,
           maxPlayers: 8
         }),
       });
+
+      if (!response.ok) {
+        throw new Error("방 생성 실패");
+      }
+
+      const data = await response.json();
+      joinRoom(data.roomId);  // 생성한 방에 바로 입장
+    } catch (error) {
+      console.error("방 생성 오류:", error);
     }
   };
 
   // 방 입장 요청
   const joinRoom = async (roomId) => {
-    if (stompClient) {
-      console.log(`방 입장: ${roomId}`);
-      stompClient.publish({
-        destination: "/app/rooms/join",
+    try {
+      const response = await fetch(`http://localhost:8080/api/rooms/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           roomId: roomId, 
           userId: guestName 
         }),
       });
+
+      if (!response.ok) {
+        alert("방 입장 실패! 방이 가득 찼거나 존재하지 않습니다.");
+      } else {
+        onJoinRoom(roomId); // 방 입장 성공 시 게임 화면으로 이동
+      }
+    } catch (error) {
+      console.error("방 입장 오류:", error);
     }
   };
 
