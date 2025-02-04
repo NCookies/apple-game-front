@@ -17,21 +17,31 @@ const App = () => {
     let storedGuestName = sessionStorage.getItem("guestName");
     // 브라우저에 저장된 guestName이 없으면 새로 생성
     if (!storedGuestName) {
+      console.log("새로운 guestName 생성:", storedGuestName);
       storedGuestName = generateGuestName();
       sessionStorage.setItem("guestName", storedGuestName);
-      console.log("새로운 guestName 생성:", storedGuestName);
     }
-    setGuestName(storedGuestName);
     console.log("현재 guestName:", storedGuestName);
+    setGuestName(storedGuestName);
   }, []);
+
+  // 방 입장
+  const joinRoom = (roomId) => {
+    setCurrentRoom(roomId);
+  };
+
+  // 방 나가기
+  const leaveRoom = () => {
+    setCurrentRoom(null);
+  };
 
   return (
     <div>
       {guestName ? (
         currentRoom ? (
-          <AppleGame roomId={currentRoom} guestName={guestName} />
+          <AppleGame guestName={guestName} roomId={currentRoom} onLeaveRoom={leaveRoom} />
         ) : (
-          <Lobby guestName={guestName} />
+          <Lobby guestName={guestName} onJoinRoom={joinRoom} />
         )
       ) : (
         <p>Loading...</p>

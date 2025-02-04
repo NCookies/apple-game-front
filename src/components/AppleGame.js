@@ -11,7 +11,7 @@ const EXTRA_PADDING = 100;
 const CANVAS_WIDTH = GRID_WIDTH * CELL_SIZE + EXTRA_PADDING * 2;
 const CANVAS_HEIGHT = GRID_HEIGHT * CELL_SIZE + EXTRA_PADDING * 2;
 
-const AppleGame = () => {
+const AppleGame = ({ roomId, guestName, onLeaveRoom }) => {
   const canvasRef = useRef(null);
   const [apples, setApples] = useState([]);
   const [selected, setSelected] = useState([]);
@@ -22,7 +22,7 @@ const AppleGame = () => {
   const [stompClient, setStompClient] = useState(null);
 
   useEffect(() => {
-    const socket = new SockJS("http://localhost:8080/ws");
+    const socket = new SockJS("http://localhost:8080/ws/game");
     const client = new Client({
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
@@ -199,9 +199,40 @@ const AppleGame = () => {
     setDragStart(null);
   };
 
+  const leaveRoom = async () => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/rooms/leave`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roomId: roomId,
+          userId: guestName
+        }),
+      });
+
+      if (!response.ok) {
+        alert("방 퇴장 실패");
+      } else {
+        console.log(`방 퇴장 성공: ${roomId}`);
+        onLeaveRoom(); // 로비 화면으로 이동
+      }
+    } catch (error) {
+      console.error("방 퇴장 오류:", error);
+    }
+  };
+
   return (
     <div style={{ textAlign: "center" }}>
       <h2>Apple Game</h2>
+
+      <h2>Room: {roomId}</h2>
+      <p>👤 Your Nickname: <strong>{guestName}</strong></p>
+
+      {/* 🔹 방 나가기 버튼 */}
+      <button onClick={leaveRoom} style={{ marginBottom: "10px" }}>
+        Leave Room
+      </button>
+
       <button onClick={startGame} style={{ marginBottom: "10px", padding: "10px" }}>
         Start Game
       </button>

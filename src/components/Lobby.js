@@ -13,10 +13,10 @@ const Lobby = ({ guestName, onJoinRoom }) => {
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
       onConnect: () => {
-        console.log("LOBBY 웹소켓 연결 성공!");
+        console.log("LOBBY 웹소켓 연결 성공");
 
         // 방 리스트 갱신
-        client.subscribe("/topic/rooms", (message) => {
+        client.subscribe("/topic/rooms/update", (message) => {
           const updatedRoom = JSON.parse(message.body);
           setRooms((prevRooms) => {
             const roomExists = prevRooms.some((room) => room.roomId === updatedRoom.roomId);
@@ -28,9 +28,14 @@ const Lobby = ({ guestName, onJoinRoom }) => {
               : [...prevRooms, updatedRoom];
           });
         });
+
+        client.subscribe("/topic/rooms/delete", (message) => {
+          const deletedRoom = JSON.parse(message.body);
+          setRooms((prevRooms) => prevRooms.filter((room) => room.roomId !== deletedRoom.roomId));
+        });
       },
       onDisconnect: () => {
-        console.log("LOBBY 웹소켓 연결 끊김!");
+        console.log("LOBBY 웹소켓 연결 끊김");
       },
     });
 
@@ -44,12 +49,13 @@ const Lobby = ({ guestName, onJoinRoom }) => {
     return () => {
       if (client) {
         client.deactivate(() => {
-          console.log("LOBBY 웹소켓 연결 해제!");
+          console.log("LOBBY 웹소켓 연결 해제");
         });
       }
     };
   }, []);
 
+  // 방 조회 요청 (GET)
   const fetchRooms = async () => {
     try {
       const response = await fetch("http://localhost:8080/api/rooms");
@@ -62,7 +68,7 @@ const Lobby = ({ guestName, onJoinRoom }) => {
     }
   };
 
-  // 방 생성 요청
+  // 방 생성 요청 (POST)
   const createRoom = async () => {
     try {
       const response = await fetch("http://localhost:8080/api/rooms/create", {
@@ -86,7 +92,7 @@ const Lobby = ({ guestName, onJoinRoom }) => {
     }
   };
 
-  // 방 입장 요청
+  // 방 입장 요청 (POST)
   const joinRoom = async (roomId) => {
     try {
       const response = await fetch(`http://localhost:8080/api/rooms/join`, {
