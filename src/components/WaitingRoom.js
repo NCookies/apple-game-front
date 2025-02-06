@@ -2,43 +2,46 @@ import React, { useEffect, useState } from "react";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 
-const WaitingRoom = ({ guestName, roomInfo, onLeaveRoom }) => {
+const WaitingRoom = ({ guestName, roomInfo, stompClient, isConnected, onLeaveRoom }) => {
+    // 현재 방의 플레이어 리스트
     const [players, setPlayers] = useState([]);
-    const [stompClient, setStompClient] = useState(null);
 
     useEffect(() => {
-        const socket = new SockJS("http://localhost:8080/ws/game");
-        const client = new Client({
-            webSocketFactory: () => socket,
-            reconnectDelay: 5000,
-            onConnect: () => {
-                console.log("[WAITING_ROOM] 웹소켓 연결 성공");
-
-                client.subscribe(`/topic/waitingRoom/${roomInfo.roomId}/player/update`, (message) => {
-                    const updatedPlayers = JSON.parse(message.body);
-                    console.log("👥 Players updated:", updatedPlayers);
-                    setPlayers(updatedPlayers);
-                });
-
-                console.log("푸시!!!!");
-                client.publish({ destination: `/app/waitingRoom/${roomInfo.roomId}/player/update` });
-            },
-            onDisconnect: () => {
-                console.log("[WAITING_ROOM] 웹소켓 연결 끊김");
-            },
-        });
-
-        client.activate();
-        setStompClient(client);
+        console.log(stompClient);
+        console.log(isConnected);
 
         return () => {
-            if (client) {
-                client.deactivate(() => {
-                    console.log("[WAITING_ROOM] 웹소켓 연결 해제");
-                });
-            }
+            // if (stompClient) {
+            //     stompClient.deactivate(() => {
+            //         console.log("[GAME] 웹소켓 연결 해제");
+            //     });
+            // }
         };
-    }, []);
+    }, [stompClient]);
+
+    stompClient.onConnect = (frame) => {
+        console.log("웹소켓 초기 작업 실시")
+
+        stompClient.subscribe(`/topic/waitingRoom/${roomInfo.roomId}/player/update`, (message) => {
+            const updatedPlayers = JSON.parse(message.body);
+            console.log("[GAME] 플레이어 업데이트: ", updatedPlayers);
+            setPlayers(updatedPlayers);
+        });
+
+        stompClient.publish({
+            destination: `/app/waitingRoom/${roomInfo.roomId}/player/join` ,
+            body: JSON.stringify({
+                playerId: guestName
+            })
+        });
+        stompClient.publish({ 
+            destination: `/app/waitingRoom/${roomInfo.roomId}/player/update` 
+        });
+    }
+
+    stompClient.onDisconnect = () => {
+        leaveRoom();
+    }
 
     const startGame = () => {
         if (stompClient) {
@@ -62,10 +65,24 @@ const WaitingRoom = ({ guestName, roomInfo, onLeaveRoom }) => {
                 alert("방 퇴장 실패");
             } else {
                 console.log(`방 퇴장 성공: ${roomInfo.roomId}`);
-                stompClient.publish({ destination: `/app/waitingRoom/${roomInfo.roomId}/player/update` });
+
+                // 방 퇴장 메시지 전송
+                if (stompClient) {
+                    stompClient.publish({
+                        destination: `/app/waitingRoom/${roomInfo.roomId}/player/update`
+                    });
+                }
                 onLeaveRoom(); // 로비 화면으로 이동
             }
         } catch (error) {
+            // 마지막 남은 인원이 방에서 퇴장할 시 방이 삭제되기 때문에 publish 하는 코드에서 에러 발생
+            // 추후 이를 처리해줘야 함
+            /*
+            WaitingRoom.js:82 방 퇴장 오류: TypeError: There is no underlying STOMP connection
+                at Client._checkConnection (client.ts:678:1)
+                at Client.publish (client.ts:671:1)
+                at leaveRoom (WaitingRoom.js:75:1)
+            */
             console.error("방 퇴장 오류:", error);
         }
     };
