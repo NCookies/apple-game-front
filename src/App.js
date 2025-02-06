@@ -1,5 +1,7 @@
 import './App.css';
 import React, { useEffect, useState } from "react";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 
 import Lobby from "./components/Lobby";
 import WaitingRoom from "./components/WaitingRoom";
@@ -11,8 +13,17 @@ const generateGuestName = () => {
 };
 
 const App = () => {
+	// 현재 상태 관리
 	const [currentRoom, setCurrentRoom] = useState(null);
+	const [currentScreen, setCurrentScreen] = useState("Lobby");
+
+	// 랜덤 UUID 닉네임
 	const [guestName, setGuestName] = useState("");
+
+	// 대기실 & 인게임 웹소켓 객체
+	const [stompClient, setStompClient] = useState(null);
+	// 웹소켓 연결 여부 확인용 변수
+	const [isConnected, setIsConnected] = useState(false);
 
 	useEffect(() => {
 		let storedGuestName = sessionStorage.getItem("guestName");
@@ -24,15 +35,36 @@ const App = () => {
 		}
 		console.log("현재 guestName:", storedGuestName);
 		setGuestName(storedGuestName);
+
+		const client = new Client({
+			webSocketFactory: () => new SockJS("http://localhost:8080/ws/game"),
+			reconnectDelay: 5000,	
+			onConnect: () => {
+				console.log("[GAME] 웹소켓 연결 성공");
+				setIsConnected(true);
+			},
+			onDisconnect: () => {
+				console.log("[GAME] 웹소켓 연결 끊김");
+				setIsConnected(false);
+			},
+			onStompError: (frame) => {
+				console.log("[GAME] 웹소켓 에러 발생", frame);
+				setIsConnected(false);
+			}
+		});
+
+		setStompClient(client);
 	}, []);
 
 	// 방 입장
 	const joinRoom = (room) => {
+		stompClient.activate();
 		setCurrentRoom(room);
 	};
 
 	// 방 나가기
 	const leaveRoom = () => {
+		stompClient.deactivate();
 		setCurrentRoom(null);
 	};
 
@@ -40,7 +72,7 @@ const App = () => {
 		<div>
 			{guestName ? (
 				currentRoom ? (
-					<WaitingRoom guestName={guestName} roomInfo={currentRoom} onLeaveRoom={leaveRoom} />
+					<WaitingRoom guestName={guestName} roomInfo={currentRoom} stompClient={stompClient} isConnected={isConnected} onLeaveRoom={leaveRoom} />
 				) : (
 					<Lobby guestName={guestName} onJoinRoom={joinRoom} />
 				)
