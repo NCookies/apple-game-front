@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 
-const WaitingRoom = ({ guestName, roomInfo, stompClient, isConnected, onLeaveRoom }) => {
+const WaitingRoom = ({ guestName, roomInfo, stompClient, isConnected, onLeaveRoom, onStartGame }) => {
     // 현재 방의 플레이어 리스트
     const [players, setPlayers] = useState([]);
 
@@ -13,7 +13,7 @@ const WaitingRoom = ({ guestName, roomInfo, stompClient, isConnected, onLeaveRoo
         return () => {
             // if (stompClient) {
             //     stompClient.deactivate(() => {
-            //         console.log("[GAME] 웹소켓 연결 해제");
+            //         console.log("[WAITING_ROOM] 웹소켓 연결 해제");
             //     });
             // }
         };
@@ -24,8 +24,15 @@ const WaitingRoom = ({ guestName, roomInfo, stompClient, isConnected, onLeaveRoo
 
         stompClient.subscribe(`/topic/waitingRoom/${roomInfo.roomId}/player/update`, (message) => {
             const updatedPlayers = JSON.parse(message.body);
-            console.log("[GAME] 플레이어 업데이트: ", updatedPlayers);
+            console.log("[WAITING_ROOM] 플레이어 업데이트: ", updatedPlayers);
             setPlayers(updatedPlayers);
+        });
+
+        stompClient.subscribe(`/topic/waitingRoom/${roomInfo.roomId}/game/start`, (message) => {
+            console.log("[WAITING_ROOM] 게임 시작 메시지 수신. 화면을 전환합니다.");
+
+            // 게임 화면 전환
+            onStartGame();
         });
 
         stompClient.publish({
@@ -43,12 +50,14 @@ const WaitingRoom = ({ guestName, roomInfo, stompClient, isConnected, onLeaveRoo
         leaveRoom();
     }
 
-    const startGame = () => {
-        if (stompClient) {
-            console.log("Sending game start request...");
-            stompClient.publish({ destination: "/app/game/start" });
-        }
-    };
+    // 호스트가 게임 시작 요청 (TODO: 호스트가 아닌 경우에는 버튼 비활성화)
+    const startGameRequest = () => {
+        console.log("[WAITING_ROOM] 게임 시작 요청 보내는 중...");
+        
+        stompClient.publish({ 
+            destination: `/app/waitingRoom/${roomInfo.roomId}/game/start`
+        });
+    }
 
     const leaveRoom = async () => {
         try {
@@ -106,7 +115,7 @@ const WaitingRoom = ({ guestName, roomInfo, stompClient, isConnected, onLeaveRoo
                 ))}
             </ul>
 
-            <button onClick={startGame} style={{ marginBottom: "10px", padding: "10px" }}>
+            <button onClick={startGameRequest} style={{ marginBottom: "10px", padding: "10px" }}>
                 Start Game
             </button>
         </div>

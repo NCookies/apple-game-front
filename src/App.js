@@ -71,13 +71,26 @@ const App = () => {
 		setCurrentScreen("Lobby");
 	};
 
+	// 게임 시작
+	const startGame = () => {
+		setCurrentScreen("AppleGame");
+	}
+
+	// 게임 종료
+	const endGame = () => {
+		setCurrentScreen("WaitingRoom");
+	}
+
 	return (
 		<div>
 			{guestName ? (
 				<>
 					{/* 로비 화면 */}
 					{currentScreen === "Lobby" && (
-						<Lobby guestName={guestName} onJoinRoom={joinRoom} />
+						<Lobby
+							guestName={guestName}
+							onJoinRoom={joinRoom}
+						/>
 					)}
 
 					{/* 대기실 화면 */}
@@ -85,17 +98,26 @@ const App = () => {
 						<WaitingRoom
 							guestName={guestName}
 							roomInfo={currentRoom}
+
 							stompClient={stompClient}
 							isConnected={isConnected}
+
 							onLeaveRoom={leaveRoom}
+							onStartGame={startGame}
 						/>
 					)}
 
 					{/* 게임 화면 */}
 					{currentScreen === "AppleGame" && (
-						<AppleGame 
-						guestName={guestName} 
-						onJoinRoom={joinRoom} />
+						<AppleGame
+							guestName={guestName}
+							roomInfo={currentRoom}
+
+							stompClient={stompClient}
+							isConnected={isConnected}
+
+							onEndGame={endGame} 
+						/>
 					)}
 				</>
 			) : (
