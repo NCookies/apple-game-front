@@ -26,8 +26,9 @@ const App = () => {
 	const [isConnected, setIsConnected] = useState(false);
 
 	useEffect(() => {
-		let storedGuestName = sessionStorage.getItem("guestName");
 		// 브라우저에 저장된 guestName이 없으면 새로 생성
+		let storedGuestName = sessionStorage.getItem("guestName");
+
 		if (!storedGuestName) {
 			console.log("새로운 guestName 생성:", storedGuestName);
 			storedGuestName = generateGuestName();
@@ -38,7 +39,7 @@ const App = () => {
 
 		const client = new Client({
 			webSocketFactory: () => new SockJS("http://localhost:8080/ws/game"),
-			reconnectDelay: 5000,	
+			reconnectDelay: 5000,
 			onConnect: () => {
 				console.log("[GAME] 웹소켓 연결 성공");
 				setIsConnected(true);
@@ -60,22 +61,43 @@ const App = () => {
 	const joinRoom = (room) => {
 		stompClient.activate();
 		setCurrentRoom(room);
+		setCurrentScreen("WaitingRoom");
 	};
 
 	// 방 나가기
 	const leaveRoom = () => {
 		stompClient.deactivate();
 		setCurrentRoom(null);
+		setCurrentScreen("Lobby");
 	};
 
 	return (
 		<div>
 			{guestName ? (
-				currentRoom ? (
-					<WaitingRoom guestName={guestName} roomInfo={currentRoom} stompClient={stompClient} isConnected={isConnected} onLeaveRoom={leaveRoom} />
-				) : (
-					<Lobby guestName={guestName} onJoinRoom={joinRoom} />
-				)
+				<>
+					{/* 로비 화면 */}
+					{currentScreen === "Lobby" && (
+						<Lobby guestName={guestName} onJoinRoom={joinRoom} />
+					)}
+
+					{/* 대기실 화면 */}
+					{currentScreen === "WaitingRoom" && (
+						<WaitingRoom
+							guestName={guestName}
+							roomInfo={currentRoom}
+							stompClient={stompClient}
+							isConnected={isConnected}
+							onLeaveRoom={leaveRoom}
+						/>
+					)}
+
+					{/* 게임 화면 */}
+					{currentScreen === "AppleGame" && (
+						<AppleGame 
+						guestName={guestName} 
+						onJoinRoom={joinRoom} />
+					)}
+				</>
 			) : (
 				<p>Loading...</p>
 			)}
