@@ -11,8 +11,15 @@ const EXTRA_PADDING = 100;
 const CANVAS_WIDTH = GRID_WIDTH * CELL_SIZE + EXTRA_PADDING * 2;
 const CANVAS_HEIGHT = GRID_HEIGHT * CELL_SIZE + EXTRA_PADDING * 2;
 
-const AppleGame = ({ guestName, roomInfo, onLeaveRoom }) => {
-	const [stompClient, setStompClient] = useState(null);
+const AppleGame = ({ guestName, roomInfo, stompClient, isConnected, onEndGame }) => {
+	// 초기화 함수들이 최초 한 번만 실행되도록 하기 위해 사용
+	// 개발 과정에서 static mode 때문에 두 번씩 useEffect()가 실행되는 문제 해결
+	const hasInitialized = useRef(false);
+
+	// 여러 구독 객체들을 하나의 배열에서 관리하기 위해 사용
+	const subscriptionsRef = useRef([]);
+
+	const [countdown, setCountdown] = useState(3);
 	const [score, setScore] = useState(0);
 
 	// 게임 동작 관련
@@ -24,41 +31,56 @@ const AppleGame = ({ guestName, roomInfo, onLeaveRoom }) => {
 	const [animations, setAnimations] = useState({});
 
 	useEffect(() => {
-		const socket = new SockJS("http://localhost:8080/ws/game");
-		const client = new Client({
-			webSocketFactory: () => socket,
-			reconnectDelay: 5000,
-			onConnect: () => {
-				console.log("[GAME] 웹소켓 연결 성공");
+		// 아래 코드가 최초 한 번만 실행되도록
+		if (hasInitialized.current) return;
+		hasInitialized.current = true;
 
-				client.subscribe("/topic/gameState", (message) => {
-					const gameData = JSON.parse(message.body);
-					console.log("🎯 Game state received:", gameData);
-					setApples(gameData.apples);
-				});
+		// 여러 구독 객체들을 하나의 배열에 저장
+		subscriptionsRef.current.push(
+			stompClient.subscribe(`/topic/gameRoom/${roomInfo.roomId}/game/countdown`, (message) => {
+				console.log(("[GMAE] 게임 시작 카운트다운:", JSON.parse(message.body)));
+				setCountdown(JSON.parse(message.body));
+			})
+		);
 
-				client.subscribe("/topic/appleUpdate", (message) => {
-					const { removedIndices } = JSON.parse(message.body);
-					console.log("🍏 Apples removed:", removedIndices);
-					setApples((prev) =>
-						prev.map((val, idx) => (removedIndices.includes(idx) ? 0 : val))
-					);
-				});
-			},
-			onDisconnect: () => {
-				console.log("[GAME] 웹소켓 연결 끊김");
-			},
-		});
+		subscriptionsRef.current.push(
+			stompClient.subscribe(`/topic/gameRoom/${roomInfo.roomId}/game/start`, (message) => {
+				console.log(("[GMAE] 게임 시작!!"));
+				setCountdown(message.body);
+			})
+		);
 
-		client.activate();
-		setStompClient(client);
+		subscriptionsRef.current.push(
+			stompClient.subscribe("/topic/gameState", (message) => {
+				const gameData = JSON.parse(message.body);
+				console.log("🎯 Game state received:", gameData);
+				setApples(gameData.apples);
+			})
+		);
+
+		subscriptionsRef.current.push(
+			stompClient.subscribe("/topic/appleUpdate", (message) => {
+				const { removedIndices } = JSON.parse(message.body);
+				console.log("🍏 Apples removed:", removedIndices);
+				setApples((prev) =>
+					prev.map((val, idx) => (removedIndices.includes(idx) ? 0 : val))
+				);
+			})
+		);
+
+
+		// 호스트가 게임 시작 요청
+		if (roomInfo.hostUserId === guestName) {
+			console.log("[GAME] 게임 시작 카운트다운 요청");
+			stompClient.publish({
+				destination: `/app/gameRoom/${roomInfo.roomId}/game/start-countdown`,
+			});
+		}
 
 		return () => {
-			if (client) {
-				client.deactivate(() => {
-					console.log("[GAME] 웹소켓 연결 해제");
-				});
-			}
+			// 모든 구독 해제
+			console.log("[GAME] 구독 해제");
+			subscriptionsRef.current.forEach((sub) => sub.unsubscribe());
 		};
 	}, []);
 
@@ -102,6 +124,7 @@ const AppleGame = ({ guestName, roomInfo, onLeaveRoom }) => {
 
 		draw();
 	}, [apples, selected, dragArea, animations]);
+
 
 	const playSound = () => {
 		const audio = new Audio("/sounds/pop.mp3");
@@ -200,6 +223,7 @@ const AppleGame = ({ guestName, roomInfo, onLeaveRoom }) => {
 
 	return (
 		<div style={{ textAlign: "center" }}>
+			<h1>방 {roomInfo.roomId} 카운트다운: {countdown}</h1>
 			<h2>Apple Game</h2>
 
 			<h2>Room: {roomInfo.roomName}</h2>
